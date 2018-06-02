@@ -17,16 +17,25 @@ func (l list) key() string {
 type Chain struct {
 	Order        int
 	stateMap     map[string]int
-	frequencyMat [][]int
-	sumArray     []int
+	frequencyMat []sparseArray
+}
+
+type sparseArray map[int]int
+
+func (s sparseArray) sum() int {
+	sum := 0
+	for _, count := range s {
+		sum += count
+	}
+	return sum
 }
 
 //NewChain creates an instance of Chain
-func NewChain(order int) Chain {
+func NewChain(order int) *Chain {
 	chain := Chain{Order: order}
 	chain.stateMap = make(map[string]int, 0)
-	chain.frequencyMat = make([][]int, 0)
-	return chain
+	chain.frequencyMat = make([]sparseArray, 0)
+	return &chain
 }
 
 //Add ...
@@ -56,15 +65,14 @@ func (chain *Chain) Add(input []string) {
 
 		if lastIndex > len(chain.frequencyMat) {
 			for i := len(chain.frequencyMat); i < lastIndex; i++ {
-				chain.frequencyMat = append(chain.frequencyMat, make([]int, 0))
+				chain.frequencyMat = append(chain.frequencyMat, make(sparseArray, 0))
 			}
 		}
 
-		if lastIndex > len(chain.frequencyMat[currentStateIndex]) {
-			for i := len(chain.frequencyMat[currentStateIndex]); i < lastIndex; i++ {
-				chain.frequencyMat[currentStateIndex] = append(chain.frequencyMat[currentStateIndex], 0)
-			}
+		if _, ok := chain.frequencyMat[currentStateIndex][nextNodeIndex]; !ok {
+			chain.frequencyMat[currentStateIndex][nextNodeIndex] = 0
 		}
+
 		chain.frequencyMat[currentStateIndex][nextNodeIndex]++
 	}
 }
@@ -91,7 +99,7 @@ func (chain *Chain) Match(text []string) float64 {
 			if nextNodeIndex, ok := chain.stateMap[nextNode]; ok {
 				arr := chain.frequencyMat[currentStateIndex]
 				if nextNodeIndex < len(arr) {
-					sum := sum(arr)
+					sum := arr.sum()
 					count := arr[nextNodeIndex]
 					if sum > 0 && count > 0 {
 						prob := float64(count) / float64(sum)
@@ -112,14 +120,4 @@ func getNGrams(tokens []string, order int) [][]string {
 		nGrams = append(nGrams, tokens[i:i+order])
 	}
 	return nGrams
-}
-
-func sum(input []int) int {
-	sum := 0
-
-	for i := range input {
-		sum += input[i]
-	}
-
-	return sum
 }
