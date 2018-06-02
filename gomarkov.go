@@ -1,10 +1,11 @@
 package gomarkov
 
 import (
-	"fmt"
 	"math"
 	"strings"
 )
+
+const minimumProbability = 0.1
 
 type list []string
 
@@ -14,14 +15,17 @@ func (l list) key() string {
 
 //Chain is a markov chain instance
 type Chain struct {
-	Order  int
-	states map[string]state
+	Order        int
+	stateMap     map[string]int
+	frequencyMat [][]int
+	sumArray     []int
 }
 
 //NewChain creates an instance of Chain
 func NewChain(order int) Chain {
 	chain := Chain{Order: order}
-	chain.states = make(map[string]state)
+	chain.stateMap = make(map[string]int, 0)
+	chain.frequencyMat = make([][]int, 0)
 	return chain
 }
 
@@ -35,8 +39,8 @@ type node struct {
 	TransitionProbability float64
 }
 
-//Learn ...
-func (chain *Chain) Learn(input []string) {
+//Add ...
+func (chain *Chain) Add(input []string) {
 	startToken := fill("^", chain.Order-1)
 	endToken := fill("$", chain.Order-1)
 	tokens := make([]string, 0)
@@ -45,33 +49,34 @@ func (chain *Chain) Learn(input []string) {
 	tokens = append(tokens, endToken...)
 	nGrams := getNGrams(tokens, chain.Order)
 	for i := 0; i < len(nGrams); i++ {
-		currentStateIndex, nextNodeIndex := splitNGram(nGrams[i])
-		currentState, ok := chain.states[currentStateIndex.key()]
+		lastIndex := len(chain.stateMap)
+		currentState, nextNode := splitNGram(nGrams[i])
+		currentStateIndex, ok := chain.stateMap[currentState.key()]
 		if !ok {
-			currentState = state{
-				sum:   0,
-				Nodes: make(map[string]node, 0),
+			currentStateIndex = lastIndex
+			chain.stateMap[currentState.key()] = lastIndex
+			lastIndex++
+		}
+		nextNodeIndex, ok := chain.stateMap[nextNode]
+		if !ok {
+			nextNodeIndex = lastIndex
+			chain.stateMap[nextNode] = nextNodeIndex
+			lastIndex++
+		}
+
+		if lastIndex > len(chain.frequencyMat) {
+			for i := len(chain.frequencyMat); i < lastIndex; i++ {
+				chain.frequencyMat = append(chain.frequencyMat, make([]int, 0))
 			}
 		}
-		nextNode, ok := currentState.Nodes[nextNodeIndex]
-		if !ok {
-			nextNode = node{Count: 0}
-		}
-		nextNode.Count++
-		currentState.sum++
-		currentState.Nodes[nextNodeIndex] = nextNode
-		chain.states[currentStateIndex.key()] = currentState
-	}
 
-	for key, state := range chain.states {
-		for key, nextNode := range state.Nodes {
-			probability := float64(nextNode.Count) / float64(state.sum)
-			nextNode.TransitionProbability = math.Log10(probability)
-			state.Nodes[key] = nextNode
+		if lastIndex > len(chain.frequencyMat[currentStateIndex]) {
+			for i := len(chain.frequencyMat[currentStateIndex]); i < lastIndex; i++ {
+				chain.frequencyMat[currentStateIndex] = append(chain.frequencyMat[currentStateIndex], 0)
+			}
 		}
-		chain.states[key] = state
+		chain.frequencyMat[currentStateIndex][nextNodeIndex]++
 	}
-	fmt.Println(chain.states)
 }
 
 func splitNGram(ngram []string) (list, string) {
@@ -86,17 +91,27 @@ func fill(value string, count int) []string {
 	return arr
 }
 
-//Predict returns the joint probability of a text seqeunce based on the transitional probability map
-func (chain *Chain) Predict(text []string) float64 {
+//Match returns the joint probability of a text seqeunce based on the transitional probability map
+func (chain *Chain) Match(text []string) float64 {
 	logProb := 0.0
 	nGrams := getNGrams(text, chain.Order)
 	for i := 0; i < len(nGrams); i++ {
-		currentStateIndex, nextNodeIndex := splitNGram(nGrams[i])
-		if currentState, ok := chain.states[currentStateIndex.key()]; ok {
-			if nextNode, ok := currentState.Nodes[nextNodeIndex]; ok {
-				logProb += nextNode.TransitionProbability
+		currentState, nextNode := splitNGram(nGrams[i])
+		if currentStateIndex, ok := chain.stateMap[currentState.key()]; ok {
+			if nextNodeIndex, ok := chain.stateMap[nextNode]; ok {
+				arr := chain.frequencyMat[currentStateIndex]
+				if nextNodeIndex < len(arr) {
+					sum := sum(arr)
+					count := arr[nextNodeIndex]
+					if sum > 0 && count > 0 {
+						prob := float64(count) / float64(sum)
+						logProb += math.Log10(prob)
+						continue
+					}
+				}
 			}
 		}
+		logProb += math.Log10(minimumProbability)
 	}
 	return math.Pow(10, logProb/float64(len(nGrams)))
 }
@@ -107,4 +122,14 @@ func getNGrams(tokens []string, order int) [][]string {
 		nGrams = append(nGrams, tokens[i:i+order])
 	}
 	return nGrams
+}
+
+func sum(input []int) int {
+	sum := 0
+
+	for i := range input {
+		sum += input[i]
+	}
+
+	return sum
 }
