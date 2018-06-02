@@ -29,16 +29,6 @@ func NewChain(order int) Chain {
 	return chain
 }
 
-type state struct {
-	sum   int
-	Nodes map[string]node
-}
-
-type node struct {
-	Count                 int
-	TransitionProbability float64
-}
-
 //Add ...
 func (chain *Chain) Add(input []string) {
 	startToken := fill("^", chain.Order-1)
