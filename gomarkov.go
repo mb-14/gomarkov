@@ -3,6 +3,7 @@ package gomarkov
 import (
 	"math"
 	"strings"
+	"sync"
 )
 
 const minimumProbability = 0.1
@@ -16,8 +17,9 @@ func (l list) key() string {
 //Chain is a markov chain instance
 type Chain struct {
 	Order        int
-	stateMap     map[string]int
-	frequencyMat []sparseArray
+	statePool    *spool
+	frequencyMat map[int]sparseArray
+	sync.RWMutex
 }
 
 type sparseArray map[int]int
@@ -33,8 +35,8 @@ func (s sparseArray) sum() int {
 //NewChain creates an instance of Chain
 func NewChain(order int) *Chain {
 	chain := Chain{Order: order}
-	chain.stateMap = make(map[string]int, 0)
-	chain.frequencyMat = make([]sparseArray, 0)
+	chain.statePool = &spool{stringMap: make(map[string]int)}
+	chain.frequencyMat = make(map[int]sparseArray, 0)
 	return &chain
 }
 
@@ -48,32 +50,15 @@ func (chain *Chain) Add(input []string) {
 	tokens = append(tokens, endToken...)
 	nGrams := getNGrams(tokens, chain.Order)
 	for i := 0; i < len(nGrams); i++ {
-		lastIndex := len(chain.stateMap)
-		currentState, nextNode := splitNGram(nGrams[i])
-		currentStateIndex, ok := chain.stateMap[currentState.key()]
-		if !ok {
-			currentStateIndex = lastIndex
-			chain.stateMap[currentState.key()] = lastIndex
-			lastIndex++
+		current, next := splitNGram(nGrams[i])
+		currentIndex := chain.statePool.add(current.key())
+		nextIndex := chain.statePool.add(next)
+		chain.Lock()
+		if chain.frequencyMat[currentIndex] == nil {
+			chain.frequencyMat[currentIndex] = make(sparseArray, 0)
 		}
-		nextNodeIndex, ok := chain.stateMap[nextNode]
-		if !ok {
-			nextNodeIndex = lastIndex
-			chain.stateMap[nextNode] = nextNodeIndex
-			lastIndex++
-		}
-
-		if lastIndex > len(chain.frequencyMat) {
-			for i := len(chain.frequencyMat); i < lastIndex; i++ {
-				chain.frequencyMat = append(chain.frequencyMat, make(sparseArray, 0))
-			}
-		}
-
-		if _, ok := chain.frequencyMat[currentStateIndex][nextNodeIndex]; !ok {
-			chain.frequencyMat[currentStateIndex][nextNodeIndex] = 0
-		}
-
-		chain.frequencyMat[currentStateIndex][nextNodeIndex]++
+		chain.frequencyMat[currentIndex][nextIndex]++
+		chain.Unlock()
 	}
 }
 
@@ -94,18 +79,16 @@ func (chain *Chain) Match(text []string) float64 {
 	logProb := 0.0
 	nGrams := getNGrams(text, chain.Order)
 	for i := 0; i < len(nGrams); i++ {
-		currentState, nextNode := splitNGram(nGrams[i])
-		if currentStateIndex, ok := chain.stateMap[currentState.key()]; ok {
-			if nextNodeIndex, ok := chain.stateMap[nextNode]; ok {
-				arr := chain.frequencyMat[currentStateIndex]
-				if nextNodeIndex < len(arr) {
-					sum := arr.sum()
-					count := arr[nextNodeIndex]
-					if sum > 0 && count > 0 {
-						prob := float64(count) / float64(sum)
-						logProb += math.Log10(prob)
-						continue
-					}
+		current, next := splitNGram(nGrams[i])
+		if currentIndex, ok := chain.statePool.get(current.key()); ok {
+			if nextIndex, ok := chain.statePool.get(next); ok {
+				arr := chain.frequencyMat[currentIndex]
+				sum := arr.sum()
+				count := arr[nextIndex]
+				if sum > 0 && count > 0 {
+					prob := float64(count) / float64(sum)
+					logProb += math.Log10(prob)
+					continue
 				}
 			}
 		}
@@ -120,4 +103,11 @@ func getNGrams(tokens []string, order int) [][]string {
 		nGrams = append(nGrams, tokens[i:i+order])
 	}
 	return nGrams
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
