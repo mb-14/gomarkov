@@ -20,13 +20,13 @@ func main() {
 		score := chain.Match(split(data))
 		normalizedScore := (score - mean) / stdDev
 		isGibberish := normalizedScore < 0
-		fmt.Printf("%s - Gibberish: %t\n", data, isGibberish)
+		fmt.Printf("%s | Score: %f | Gibberish: %t\n", data, normalizedScore, isGibberish)
 	}
 }
 
 func buildChain() *gomarkov.Chain {
 	chain := gomarkov.NewChain(2)
-	for _, data := range getDataset("id_list.txt") {
+	for _, data := range getDataset("usernames.txt") {
 		chain.Add(split(data))
 	}
 	return chain
