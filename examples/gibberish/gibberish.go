@@ -1,60 +1,54 @@
 package main
 
 import (
-	"math"
 	"bufio"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
 
 	"github.com/mb-14/gomarkov"
+	"github.com/montanaflynn/stats"
 )
 
 func main() {
-	goodChain := gomarkov.NewChain(4)
-	goodTrain, goodTest := getData("good.txt", 50)
-	badTrain, badTest := getData("bad.txt", 10)
+	chain := buildChain()
 
-	for _, data := range goodTrain {
-		goodChain.Add(split(data))
-	}
-
-	for _, data := range append(goodTest) {
-		match := goodChain.Match(split(data))
-		y := 1/(1 + math.Exp(-match))
-		fmt.Printf("%g, %g\n", match, y)
-	}
-
-	// badChain := gomarkov.NewChain(3)
-
-	// for _, data := range badTrain {
-	// 	badChain.Add(split(data))
-	// }
-
-	for _, data := range append(badTrain, badTest...) {
-		match := goodChain.Match(split(data))
-		y := 1/(1 + math.Exp(-match))
-		fmt.Printf("%g, %g\n", match, y)
+	scores := getScores(chain)
+	stdDev, _ := stats.StandardDeviation(scores)
+	mean, _ := stats.Mean(scores)
+	for _, data := range getDataset("test.txt") {
+		score := chain.Match(split(data))
+		normalizedScore := (score - mean) / stdDev
+		isGibberish := normalizedScore < 0
+		fmt.Printf("%s - Gibberish: %t\n", data, isGibberish)
 	}
 }
 
-func getData(fileName string, n int) ([]string, []string) {
+func buildChain() *gomarkov.Chain {
+	chain := gomarkov.NewChain(2)
+	for _, data := range getDataset("id_list.txt") {
+		chain.Add(split(data))
+	}
+	return chain
+}
+
+func getScores(chain *gomarkov.Chain) []float64 {
+	scores := make([]float64, 0)
+	for _, data := range getDataset("train.txt") {
+		score := chain.Match(split(data))
+		scores = append(scores, score)
+	}
+	return scores
+}
+
+func getDataset(fileName string) []string {
 	file, _ := os.Open(fileName)
 	scanner := bufio.NewScanner(file)
 	var list []string
 	for scanner.Scan() {
 		list = append(list, scanner.Text())
 	}
-	list = shuffle(list)
-	return list[n:], list[len(list)-n:]
-}
-
-func shuffle(arr []string) []string {
-	rand.Shuffle(len(arr), func(i, j int) {
-		arr[i], arr[j] = arr[j], arr[i]
-	})
-	return arr
+	return list
 }
 
 func split(str string) []string {
