@@ -27,7 +27,7 @@ func main() {
 }
 
 func buildChain() *gomarkov.Chain {
-	chain := gomarkov.NewChain(3)
+	chain := gomarkov.NewChain(2)
 	for _, data := range getDataset("usernames.txt") {
 		chain.Add(split(data))
 	}
