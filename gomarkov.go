@@ -1,17 +1,22 @@
 package gomarkov
 
 import (
-	"math"
+	"errors"
 	"strings"
 	"sync"
 )
 
-const minimumProbability = 0.1
+//NGram ...
+type NGram []string
 
-type list []string
+func (ngram NGram) key() string {
+	return strings.Join(ngram, "_")
+}
 
-func (l list) key() string {
-	return strings.Join(l, "_")
+//Pair is a pair of consecutive states in a sequece
+type Pair struct {
+	CurrentState NGram  // n = order of the chain
+	NextState    string // n = 1
 }
 
 //Chain is a markov chain instance
@@ -40,19 +45,19 @@ func NewChain(order int) *Chain {
 	return &chain
 }
 
-//Add ...
+//Add adds the transition counts to the chain for a given sequence
 func (chain *Chain) Add(input []string) {
-	startToken := fill("^", chain.Order-1)
-	endToken := fill("$", chain.Order-1)
+	startToken := fill("^", chain.Order)
+	endToken := fill("$", chain.Order)
 	tokens := make([]string, 0)
 	tokens = append(tokens, startToken...)
 	tokens = append(tokens, input...)
 	tokens = append(tokens, endToken...)
-	nGrams := getNGrams(tokens, chain.Order)
-	for i := 0; i < len(nGrams); i++ {
-		current, next := splitNGram(nGrams[i])
-		currentIndex := chain.statePool.add(current.key())
-		nextIndex := chain.statePool.add(next)
+	pairs := MakePairs(tokens, chain.Order)
+	for i := 0; i < len(pairs); i++ {
+		pair := pairs[i]
+		currentIndex := chain.statePool.add(pair.CurrentState.key())
+		nextIndex := chain.statePool.add(pair.NextState)
 		chain.Lock()
 		if chain.frequencyMat[currentIndex] == nil {
 			chain.frequencyMat[currentIndex] = make(sparseArray, 0)
@@ -60,10 +65,6 @@ func (chain *Chain) Add(input []string) {
 		chain.frequencyMat[currentIndex][nextIndex]++
 		chain.Unlock()
 	}
-}
-
-func splitNGram(ngram []string) (list, string) {
-	return ngram[:len(ngram)-1], ngram[len(ngram)-1]
 }
 
 func fill(value string, count int) []string {
@@ -74,35 +75,33 @@ func fill(value string, count int) []string {
 	return arr
 }
 
-//Match returns the joint probability of a text seqeunce based on the transitional probability map
-func (chain *Chain) Match(text []string) float64 {
-	logProb := 0.0
-	nGrams := getNGrams(text, chain.Order)
-	for i := 0; i < len(nGrams); i++ {
-		current, next := splitNGram(nGrams[i])
-		if currentIndex, ok := chain.statePool.get(current.key()); ok {
-			if nextIndex, ok := chain.statePool.get(next); ok {
-				arr := chain.frequencyMat[currentIndex]
-				sum := arr.sum()
-				count := arr[nextIndex]
-				if sum > 0 && count > 0 {
-					prob := float64(count) / float64(sum)
-					logProb += math.Log10(prob)
-					continue
-				}
-			}
-		}
-		logProb += math.Log10(minimumProbability)
+//TransitionProbability returns the transition probability between two states
+func (chain *Chain) TransitionProbability(next string, current NGram) (float64, error) {
+	if len(current) != chain.Order {
+		return 0, errors.New("N-gram length does not match chain order")
 	}
-	return math.Pow(10, logProb/float64(len(nGrams)))
+	currentIndex, currentExists := chain.statePool.get(current.key())
+	nextIndex, nextExists := chain.statePool.get(next)
+	if !currentExists || !nextExists {
+		return 0, nil
+	}
+	arr := chain.frequencyMat[currentIndex]
+	sum := float64(arr.sum())
+	freq := float64(arr[nextIndex])
+	return freq / sum, nil
 }
 
-func getNGrams(tokens []string, order int) [][]string {
-	var nGrams [][]string
-	for i := 0; i < len(tokens)-order+1; i++ {
-		nGrams = append(nGrams, tokens[i:i+order])
+//MakePairs generates n-gram pairs of consecutive states in a sequence
+func MakePairs(tokens []string, order int) []Pair {
+	var pairs []Pair
+	for i := 0; i < len(tokens)-order; i++ {
+		pair := Pair{
+			CurrentState: tokens[i : i+order],
+			NextState:    tokens[i+order],
+		}
+		pairs = append(pairs, pair)
 	}
-	return nGrams
+	return pairs
 }
 
 func max(a, b int) int {
