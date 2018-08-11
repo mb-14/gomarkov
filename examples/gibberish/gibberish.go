@@ -2,7 +2,10 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"os"
 	"strings"
@@ -13,17 +16,65 @@ import (
 
 const minimumProbability = 0.05
 
+type model struct {
+	Mean   float64         `json:"mean"`
+	StdDev float64         `json:"std_dev"`
+	Chain  *gomarkov.Chain `json:"chain"`
+}
+
 func main() {
+	train := flag.Bool("train", false, "Train the markov chain")
+	username := flag.String("u", "", "Username to classify")
+	flag.Parse()
+	if *train {
+		model := buildModel()
+		saveModel(model)
+	} else {
+		if len(*username) == 0 {
+			flag.Usage()
+			return
+		}
+		model, err := loadModel()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		score := sequenceProbablity(model.Chain, *username)
+		normalizedScore := (score -  model.Mean) / model.StdDev
+		isGibberish := normalizedScore < 0
+		fmt.Printf("Score: %f | Gibberish: %t\n", normalizedScore, isGibberish)
+	}
+}
+
+func buildModel() model {
+	var model model
 	chain := buildChain()
 	scores := getScores(chain)
-	stdDev, _ := stats.StandardDeviation(scores)
-	mean, _ := stats.Mean(scores)
-	for _, data := range getDataset("test.txt") {
-		score := sequenceProbablity(chain, data)
-		normalizedScore := (score - mean) / stdDev
-		isGibberish := normalizedScore < 0
-		fmt.Printf("%s | Score: %f | Gibberish: %t\n", data, normalizedScore, isGibberish)
+	model.StdDev, _ = stats.StandardDeviation(scores)
+	model.Mean, _ = stats.Mean(scores)
+	model.Chain = chain
+	return model
+}
+
+func saveModel(model model) {
+	jsonObj, _ := json.Marshal(model)
+	err := ioutil.WriteFile("model.json", jsonObj, 0644)
+	if err != nil {
+		fmt.Println(err)
 	}
+}
+
+func loadModel() (model, error) {
+	data, err := ioutil.ReadFile("model.json")
+	if err != nil {
+		return model{}, err
+	}
+	var m model
+	err = json.Unmarshal(data, &m)
+	if err != nil {
+		return model{}, err
+	}
+	return m, nil
 }
 
 func buildChain() *gomarkov.Chain {

@@ -1,6 +1,7 @@
 package gomarkov
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 )
@@ -10,7 +11,37 @@ type Chain struct {
 	Order        int
 	statePool    *spool
 	frequencyMat map[int]sparseArray
-	sync.RWMutex
+	lock         *sync.RWMutex
+}
+
+type chainJSON struct {
+	Order    int                 `json:"int"`
+	SpoolMap map[string]int      `json:"spool_map"`
+	FreqMat  map[int]sparseArray `json:"freq_mat"`
+}
+
+//MarshalJSON ...
+func (chain Chain) MarshalJSON() ([]byte, error) {
+	obj := chainJSON{
+		chain.Order,
+		chain.statePool.stringMap,
+		chain.frequencyMat,
+	}
+	return json.Marshal(obj)
+}
+
+//UnmarshalJSON ...
+func (chain *Chain) UnmarshalJSON(b []byte) error {
+	var obj chainJSON
+	err := json.Unmarshal(b, &obj)
+	if err != nil {
+		return err
+	}
+	chain.Order = obj.Order
+	chain.statePool = &spool{stringMap: obj.SpoolMap}
+	chain.frequencyMat = obj.FreqMat
+	chain.lock = new(sync.RWMutex)
+	return nil
 }
 
 //NewChain creates an instance of Chain
@@ -18,6 +49,7 @@ func NewChain(order int) *Chain {
 	chain := Chain{Order: order}
 	chain.statePool = &spool{stringMap: make(map[string]int)}
 	chain.frequencyMat = make(map[int]sparseArray, 0)
+	chain.lock = new(sync.RWMutex)
 	return &chain
 }
 
@@ -34,12 +66,12 @@ func (chain *Chain) Add(input []string) {
 		pair := pairs[i]
 		currentIndex := chain.statePool.add(pair.CurrentState.key())
 		nextIndex := chain.statePool.add(pair.NextState)
-		chain.Lock()
+		chain.lock.Lock()
 		if chain.frequencyMat[currentIndex] == nil {
 			chain.frequencyMat[currentIndex] = make(sparseArray, 0)
 		}
 		chain.frequencyMat[currentIndex][nextIndex]++
-		chain.Unlock()
+		chain.lock.Unlock()
 	}
 }
 
