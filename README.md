@@ -36,7 +36,7 @@ func main() {
 
     //The chain is JSON serializable
     jsonObj, _ := json.Marshal(chain)
-	err := ioutil.WriteFile("model.json", jsonObj, 0644)
+    err := ioutil.WriteFile("model.json", jsonObj, 0644)
     if err != nil {
     	fmt.Println(err)
     }
