@@ -28,11 +28,11 @@ func main() {
     //Output: 0.6666666666666666
 
     //You can even generate new text based on an initial seed
-	chain.Add(strings.Split("Mother should I build the wall?", " "))
-	chain.Add(strings.Split("Mother should I run for President?", " "))
-	chain.Add(strings.Split("Mother should I trust the government?", " "))
-	next, _ := chain.Generate([]string{"should", "I"})
-	fmt.Println(next)
+    chain.Add(strings.Split("Mother should I build the wall?", " "))
+    chain.Add(strings.Split("Mother should I run for President?", " "))
+    chain.Add(strings.Split("Mother should I trust the government?", " "))
+    next, _ := chain.Generate([]string{"should", "I"})
+    fmt.Println(next)
 
     //The chain is JSON serializable
     jsonObj, _ := json.Marshal(chain)
