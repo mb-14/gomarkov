@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-//Tokens
+//Tokens are wrapped around a sequence of words to maintain the
+//start and end transition counts
 const (
 	StartToken = "$"
 	EndToken   = "^"
@@ -72,10 +73,10 @@ func NewChain(order int) *Chain {
 	return &chain
 }
 
-//Add adds the transition counts to the chain for a given sequence
+//Add adds the transition counts to the chain for a given sequence of words
 func (chain *Chain) Add(input []string) {
-	startTokens := fill(StartToken, chain.Order)
-	endTokens := fill(EndToken, chain.Order)
+	startTokens := array(StartToken, chain.Order)
+	endTokens := array(EndToken, chain.Order)
 	tokens := make([]string, 0)
 	tokens = append(tokens, startTokens...)
 	tokens = append(tokens, input...)
@@ -110,7 +111,7 @@ func (chain *Chain) TransitionProbability(next string, current NGram) (float64, 
 	return freq / sum, nil
 }
 
-//Generate ...
+//Generate generates new text based on an initial seed of words
 func (chain *Chain) Generate(current NGram) (string, error) {
 	if len(current) != chain.Order {
 		return "", errors.New("N-gram length does not match chain order")

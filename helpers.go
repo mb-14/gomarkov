@@ -8,7 +8,7 @@ type Pair struct {
 	NextState    string // n = 1
 }
 
-//NGram is a array of tokens
+//NGram is a array of words
 type NGram []string
 
 type sparseArray map[int]int
@@ -32,7 +32,7 @@ func max(a, b int) int {
 	return b
 }
 
-func fill(value string, count int) []string {
+func array(value string, count int) []string {
 	arr := make([]string, count)
 	for i := range arr {
 		arr[i] = value
