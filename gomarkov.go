@@ -3,7 +3,16 @@ package gomarkov
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math/rand"
 	"sync"
+	"time"
+)
+
+//Tokens
+const (
+	StartToken = "$"
+	EndToken   = "^"
 )
 
 //Chain is a markov chain instance
@@ -38,7 +47,14 @@ func (chain *Chain) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	chain.Order = obj.Order
-	chain.statePool = &spool{stringMap: obj.SpoolMap}
+	intMap := make(map[int]string)
+	for k, v := range obj.SpoolMap {
+		intMap[v] = k
+	}
+	chain.statePool = &spool{
+		stringMap: obj.SpoolMap,
+		intMap:    intMap,
+	}
 	chain.frequencyMat = obj.FreqMat
 	chain.lock = new(sync.RWMutex)
 	return nil
@@ -47,7 +63,10 @@ func (chain *Chain) UnmarshalJSON(b []byte) error {
 //NewChain creates an instance of Chain
 func NewChain(order int) *Chain {
 	chain := Chain{Order: order}
-	chain.statePool = &spool{stringMap: make(map[string]int)}
+	chain.statePool = &spool{
+		stringMap: make(map[string]int),
+		intMap:    make(map[int]string),
+	}
 	chain.frequencyMat = make(map[int]sparseArray, 0)
 	chain.lock = new(sync.RWMutex)
 	return &chain
@@ -55,12 +74,12 @@ func NewChain(order int) *Chain {
 
 //Add adds the transition counts to the chain for a given sequence
 func (chain *Chain) Add(input []string) {
-	startToken := fill("^", chain.Order)
-	endToken := fill("$", chain.Order)
+	startTokens := fill(StartToken, chain.Order)
+	endTokens := fill(EndToken, chain.Order)
 	tokens := make([]string, 0)
-	tokens = append(tokens, startToken...)
+	tokens = append(tokens, startTokens...)
 	tokens = append(tokens, input...)
-	tokens = append(tokens, endToken...)
+	tokens = append(tokens, endTokens...)
 	pairs := MakePairs(tokens, chain.Order)
 	for i := 0; i < len(pairs); i++ {
 		pair := pairs[i]
@@ -89,4 +108,26 @@ func (chain *Chain) TransitionProbability(next string, current NGram) (float64, 
 	sum := float64(arr.sum())
 	freq := float64(arr[nextIndex])
 	return freq / sum, nil
+}
+
+//Generate ...
+func (chain *Chain) Generate(current NGram) (string, error) {
+	if len(current) != chain.Order {
+		return "", errors.New("N-gram length does not match chain order")
+	}
+	currentIndex, currentExists := chain.statePool.get(current.key())
+	if !currentExists {
+		return "", fmt.Errorf("Unknown ngram %v", current)
+	}
+	arr := chain.frequencyMat[currentIndex]
+	sum := arr.sum()
+	rand.Seed(time.Now().UnixNano())
+	randN := rand.Intn(sum)
+	for i, freq := range arr {
+		randN -= freq
+		if randN <= 0 {
+			return chain.statePool.intMap[i], nil
+		}
+	}
+	return "", nil
 }

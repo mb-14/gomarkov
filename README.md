@@ -21,11 +21,13 @@ func main() {
     chain.Add([]string{"I", "want", "to", "go", "to", "the", "movies"})
 
     //Get transition probability of a sequence
-    prob := chain.TransitionProbability("a", []string{"I", "want"})
+    prob, _ := chain.TransitionProbability("a", []string{"I", "want"})
     fmt.Println(prob)
     //Output: 0.6666666666666666
 }
 ```
 ## Examples
 
-- [Gibberish username detector](github.com/mb-14/gomarkov/examples/gibberish)
+- [Gibberish username detector](/examples/gibberish)
+
+- [Fake Hackernews post generator](/examples/fakernews)

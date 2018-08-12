@@ -4,6 +4,7 @@ import "sync"
 
 type spool struct {
 	stringMap map[string]int
+	intMap    map[int]string
 	sync.RWMutex
 }
 
@@ -22,6 +23,7 @@ func (s *spool) add(str string) int {
 	}
 	index = len(s.stringMap)
 	s.stringMap[str] = index
+	s.intMap[index] = str
 	return index
 }
 
