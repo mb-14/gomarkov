@@ -1,6 +1,6 @@
 # Fake HN post generator
 
-`fackernews` builds a markov chain using the top 500 post titles on HN and generates fake HN posts
+`fakernews` builds a markov chain using the top 500 post titles on HN and generates fake HN posts
 
 ## Usage
 ```
