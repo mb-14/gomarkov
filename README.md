@@ -1,7 +1,8 @@
 # gomarkov
 [![GoDoc](https://godoc.org/github.com/mb-14/gomarkov?status.svg)](https://godoc.org/github.com/mb-14/gomarkov)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mb-14/gomarkov)](https://goreportcard.com/report/github.com/mb-14/gomarkov)
 
-Go implementation of markov chains for textual data. 
+Go implementation of markov chains for textual data.
 
 You can find out more about markov chains [here](http://setosa.io/ev/markov-chains/) and [here](https://towardsdatascience.com/introduction-to-markov-chains-50da3645a50d)
 
