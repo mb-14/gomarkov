@@ -49,3 +49,5 @@ func main() {
 - [Gibberish username detector](/examples/gibberish)
 
 - [Fake Hackernews post generator](/examples/fakernews)
+
+- [Pokemon name generator](/examples/pokenamer)
