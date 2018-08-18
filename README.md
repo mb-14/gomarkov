@@ -20,9 +20,9 @@ func main() {
     chain := gomarkov.NewChain(2)
 
     //Feed in training data
-    chain.Add([]string{"I", "want", "a", "cheese", "burger"})
-    chain.Add([]string{"I", "want", "a", "chilled", "sprite"})
-    chain.Add([]string{"I", "want", "to", "go", "to", "the", "movies"})
+    chain.Add(strings.Split("I want a cheese burger", " "))
+    chain.Add(strings.Split("I want a chilled sprite", " "))
+    chain.Add(strings.Split("I want to go to the movies", " "))
 
     //Get transition probability of a sequence
     prob, _ := chain.TransitionProbability("a", []string{"I", "want"})
