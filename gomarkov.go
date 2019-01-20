@@ -122,7 +122,6 @@ func (chain *Chain) Generate(current NGram) (string, error) {
 	}
 	arr := chain.frequencyMat[currentIndex]
 	sum := arr.sum()
-	rand.Seed(time.Now().UnixNano())
 	randN := rand.Intn(sum)
 	for i, freq := range arr {
 		randN -= freq
@@ -131,4 +130,8 @@ func (chain *Chain) Generate(current NGram) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
 }
