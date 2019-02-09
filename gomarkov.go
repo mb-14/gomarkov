@@ -132,6 +132,29 @@ func (chain *Chain) Generate(current NGram) (string, error) {
 	return "", nil
 }
 
+//GenerateAll generates whole chain of text from scratch.
+func (chain *Chain) GenerateAll() ([]string, error) {
+	generatedText := []string{}
+	current := make(NGram, 0)
+	for i := 0; i < chain.Order; i++ {
+		current = append(current, StartToken)
+	}
+
+	for {
+		next, err := chain.Generate(current)
+		if err != nil {
+			return []string{}, err
+		}
+		if next == EndToken {
+			break
+		}
+
+		current = append(current, next)[1:]
+		generatedText = append(generatedText, next)
+	}
+	return generatedText, nil
+}
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
