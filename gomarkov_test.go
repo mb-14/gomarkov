@@ -39,8 +39,7 @@ func TestChain_MarshalJSON(t *testing.T) {
 
 func TestChain_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
-		name string
-		// chain   *Chain
+		name    string
 		args    []byte
 		wantErr bool
 	}{
@@ -66,13 +65,15 @@ func TestNewChain(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *Chain
+		want int
 	}{
-		// TODO: Add test cases.
+		{"Order 1", args{order: 1}, 1},
+		{"Order 2", args{order: 2}, 2},
+		{"Order 50", args{order: 50}, 50},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewChain(tt.args.order); !reflect.DeepEqual(got, tt.want) {
+			if got := NewChain(tt.args.order); got.Order != tt.want {
 				t.Errorf("NewChain() = %v, want %v", got, tt.want)
 			}
 		})
