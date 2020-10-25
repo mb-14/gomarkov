@@ -176,16 +176,60 @@ func TestChain_Generate(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		chain   *Chain
+		chain   []byte
 		args    args
 		want    string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"Start of simple chain",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{current: NGram{"$"}},
+			"Test",
+			false,
+		},
+		{
+			"End of simple chain",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{current: NGram{"Test"}},
+			"^",
+			false,
+		},
+		{
+			"Complex chain",
+			[]byte(`{"int":1,"spool_map":{"$":0,"^":3,"data":2,"node":4,"test":1},"freq_mat":{"0":{"1":3},"1":{"2":2,"4":0},"2":{"3":2},"4":{"3":1}}}`),
+			args{current: NGram{"test"}},
+			"data",
+			false,
+		},
+		{
+			"Invalid Ngram",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{current: NGram{"Invalid", "Ngram"}},
+			"",
+			true,
+		},
+		{
+			"Unknown Ngram",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{current: NGram{"Unknown"}},
+			"",
+			true,
+		},
+		{
+			"No next state",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{current: NGram{"^"}},
+			"",
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.chain.Generate(tt.args.current)
+			chain := NewChain(1)
+			chain.UnmarshalJSON(tt.chain)
+
+			got, err := chain.Generate(tt.args.current)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Chain.Generate() error = %v, wantErr %v", err, tt.wantErr)
 				return
