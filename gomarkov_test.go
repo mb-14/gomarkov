@@ -105,16 +105,60 @@ func TestChain_TransitionProbability(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		chain   *Chain
+		chain   []byte
 		args    args
 		want    float64
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"Simple transition positive",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{next: "Test", current: NGram{"$"}},
+			1,
+			false,
+		},
+		{
+			"Simple transition negative",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{next: "Test", current: NGram{"Test"}},
+			0,
+			false,
+		},
+		{
+			"Unknown next Ngram",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{next: "Unknown", current: NGram{"Test"}},
+			0,
+			false,
+		},
+		{
+			"Unknown ncurent Ngram",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{next: "Test", current: NGram{"Unknown"}},
+			0,
+			false,
+		},
+		{
+			"Invalid Ngram",
+			[]byte(`{"int":1,"spool_map":{"$":0,"Test":1,"^":2},"freq_mat":{"0":{"1":1},"1":{"2":1}}}`),
+			args{next: "Unknown", current: NGram{"Test", "data"}},
+			0,
+			true,
+		},
+		{
+			"More than 1 option",
+			[]byte(`{"int":1,"spool_map":{"$":0,"^":3,"data":2,"node":4,"test":1},"freq_mat":{"0":{"1":3},"1":{"2":2,"4":2},"2":{"3":2},"4":{"3":1}}}`),
+			args{next: "node", current: NGram{"test"}},
+			0.5,
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.chain.TransitionProbability(tt.args.next, tt.args.current)
+			chain := NewChain(1)
+			chain.UnmarshalJSON(tt.chain)
+
+			got, err := chain.TransitionProbability(tt.args.next, tt.args.current)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Chain.TransitionProbability() error = %v, wantErr %v", err, tt.wantErr)
 				return
