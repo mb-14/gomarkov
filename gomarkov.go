@@ -116,6 +116,10 @@ func (chain *Chain) Generate(current NGram) (string, error) {
 	if len(current) != chain.Order {
 		return "", errors.New("N-gram length does not match chain order")
 	}
+	if current[len(current)-1] == EndToken {
+		// Dont generate anything after the end token
+		return "", nil
+	}
 	currentIndex, currentExists := chain.statePool.get(current.key())
 	if !currentExists {
 		return "", fmt.Errorf("Unknown ngram %v", current)
